@@ -2,13 +2,15 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
+use std::fs::OpenOptions;
 
-
+#[derive(Debug)]
 struct Entry {
     offset: usize,
     size: usize,
 }
 
+#[derive(Debug)]
 pub struct Memtable {
     offset: usize,
     index: HashMap<String, Entry>,
@@ -16,11 +18,15 @@ pub struct Memtable {
 }
 
 impl Memtable {
-    pub fn new(path : &Path) -> Result<Memtable, &'static str> {
-        let file = match File::create(path) {
-            Err(_) => return Err("Couldn't create log file {}"),
-            Ok(file) => file,
-        };
+    pub fn new(path : &Path) -> Result<Memtable, String> {
+        let file = match OpenOptions::new().
+            write(true).
+            append(true).
+            create(true).
+            open(path) {
+                Err(why) => return Err(format!("Could not open a file: {}", why)),
+                Ok(file) => file,
+            };
 
         let result = Memtable{
             index: HashMap::new(),
@@ -32,7 +38,7 @@ impl Memtable {
 
     pub fn insert(&mut self, key: String, value: String) -> Result<(), &'static str> {
         let value_raw = value.as_bytes();
-        match self.log.write_all(value_raw) {
+        match self.log.write(value_raw) {
             Err(_) => return Err("couldn't write to file"),
             _ => (),
         };
