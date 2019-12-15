@@ -48,8 +48,8 @@ impl Memtable {
         Ok(())
     }
 
-    pub fn read(&mut self, key: String) -> Result<String, Error> {
-        let entry = match self.index.get(&key) {
+    pub fn read(&mut self, key: &String) -> Result<String, Error> {
+        let entry = match self.index.get(key) {
             None => return Err(Error::NotFound),
             Some(v) => v,
         };
