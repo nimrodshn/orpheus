@@ -4,6 +4,10 @@ use std::io;
 use std::io::prelude::*;
 use std::path::Path;
 use std::fs::OpenOptions;
+use std::rc::Rc;
+use crate::memtable::error::Error;
+
+pub mod error;
 
 #[derive(Debug)]
 struct Entry {
@@ -34,7 +38,7 @@ impl Memtable {
         Ok(result)
     }
 
-    pub fn insert(&mut self, key: String, value: String) -> Result<(), io::Error> {
+    pub fn write(&mut self, key: String, value: String) -> Result<(), io::Error> {
         let value_raw = value.as_bytes();
         self.log.write(value_raw)?;
         
@@ -42,5 +46,27 @@ impl Memtable {
         self.index.insert(key, mem_table_entry);
         self.offset = self.offset + value_raw.len();
         Ok(())
+    }
+
+    pub fn read(&mut self, key: String) -> Result<String, Error> {
+        let entry = match self.index.get(&key) {
+            None => return Err(Error::NotFound),
+            Some(v) => v,
+        };
+        let offset = entry.offset;
+        let mut buf = vec![0u8; entry.size];
+        match self.log.seek(io::SeekFrom::Start(offset as u64)) {
+            Err(e) => return Err(Error::Io(Rc::new(e))),
+            _ => (),
+        };
+        match self.log.read_exact(&mut buf) {
+            Err(e) => return Err(Error::Io(Rc::new(e))),
+            Ok(v) => v,
+        };
+        let result = match String::from_utf8(buf) {
+            Err(e) => return Err(Error::FromUTF8(Rc::new(e))),
+            Ok(v) => v,
+        };
+        Ok(result)
     }
 }

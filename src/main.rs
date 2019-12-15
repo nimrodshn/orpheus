@@ -1,9 +1,11 @@
 use std::io;
 use std::path::Path;
-use orpheus::Memtable;
+use crate::memtable::Memtable;
+
+pub mod memtable;
 
 fn main() {
-    let path = Path::new("/home/nimrodshneor/log.txt");
+    let path = Path::new("/home/nshneor/workspace/log.txt");
 
     loop {
         println!("Please enter the next key");
@@ -18,6 +20,6 @@ fn main() {
         
         let mut mem_table = Memtable::new(path).expect("Failed to create a mem table");
         
-        mem_table.insert(key, value).expect("Could not write to mem table");
+        mem_table.write(key, value).expect("Could not write to mem table");
     }
 }
