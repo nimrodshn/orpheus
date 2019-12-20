@@ -13,11 +13,13 @@ fn main() {
         let mut key = String::new();
         io::stdin().read_line(&mut key)
             .expect("Failed to read line");
-
+        key.truncate(key.len()-1);
+            
         println!("Please enter the next values");
         let mut value = String::new();
         io::stdin().read_line(&mut value)
             .expect("Failed to read line");
+        value.truncate(value.len()-1);
         
         mem_table.write(key, value).expect("Could not write to mem table");
         
@@ -25,6 +27,7 @@ fn main() {
         let mut key = String::new();
         io::stdin().read_line(&mut key)
             .expect("Failed to read line");
+        key.truncate(key.len()-1);
             
         let value = match mem_table.read(&key) {
             Ok(v) => v,
@@ -32,6 +35,5 @@ fn main() {
         };
 
         println!("The value corresponding to key {} is {}", key, value);
-
     }
 }

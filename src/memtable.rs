@@ -26,6 +26,7 @@ impl Memtable {
     pub fn new(path : &Path) -> Result<Memtable, io::Error> {
         let file = OpenOptions::new().
             write(true).
+            read(true).
             append(true).
             create(true).
             open(path)?;
@@ -53,9 +54,8 @@ impl Memtable {
             None => return Err(Error::NotFound),
             Some(v) => v,
         };
-        let offset = entry.offset;
         let mut buf = vec![0u8; entry.size];
-        match self.log.seek(io::SeekFrom::Start(offset as u64)) {
+        match self.log.seek(io::SeekFrom::Start(entry.offset as u64)) {
             Err(e) => return Err(Error::Io(Rc::new(e))),
             _ => (),
         };

@@ -25,7 +25,7 @@ impl fmt::Display for Error {
 
 // a test function that returns our error result
 fn raises_my_error(mut memtable: Memtable, key: String) -> Result<(),Error> {
-    match memtable.read(key) {
+    match memtable.read(&key) {
         Ok(_v) => Ok(()),
         Err(e) => Err(e),
     }
