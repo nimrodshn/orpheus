@@ -1,6 +1,5 @@
 use std::fmt;
 use std::io;
-use crate::memtable::Memtable;
 
 // Define our error types. These may be customized for our error handling cases.
 // Now we will be able to write our own errors, defer to an underlying error
@@ -20,13 +19,5 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Some error occurred!")
-    }
-}
-
-// a test function that returns our error result
-fn raises_my_error(mut memtable: Memtable, key: String) -> Result<(),Error> {
-    match memtable.read(&key) {
-        Ok(_v) => Ok(()),
-        Err(e) => Err(e),
     }
 }

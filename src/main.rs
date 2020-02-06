@@ -1,39 +1,32 @@
 use std::io;
-use std::path::Path;
+use std::env;
+use std::process;
 use crate::memtable::Memtable;
+use crate::config::Config;
+use std::error::Error;
+
+extern crate clap;
 
 pub mod memtable;
+pub mod config;
 
 fn main() {
-    let path = Path::new("/home/nshneor/workspace/log.txt");
-    let mut mem_table = Memtable::new(path).expect("Failed to create a mem table");
+    let args: Vec<String> = env::args().collect();
+    let conf = Config::new(&args).unwrap_or_else(|err| {
+        println!("Problem parsing arguments: {}", err);
+        process::exit(1);
+    });
+    if let Err(e) = run(conf) {
+        println!("Application error: {}", e);
+        process::exit(1);
+    };
+}
 
-    loop {
-        println!("Please enter the next key");
-        let mut key = String::new();
-        io::stdin().read_line(&mut key)
-            .expect("Failed to read line");
-        key.truncate(key.len()-1);
-            
-        println!("Please enter the next values");
-        let mut value = String::new();
-        io::stdin().read_line(&mut value)
-            .expect("Failed to read line");
-        value.truncate(value.len()-1);
-        
-        mem_table.write(key, value).expect("Could not write to mem table");
-        
-        println!("Please enter the next key to read from");
-        let mut key = String::new();
-        io::stdin().read_line(&mut key)
-            .expect("Failed to read line");
-        key.truncate(key.len()-1);
-            
-        let value = match mem_table.read(&key) {
-            Ok(v) => v,
-            Err(e) => panic!("An error occured, while trying to read message: {:?}", e),
-        };
+fn run(conf: Config) -> Result<(), Box<dyn Error>> {
+    let mut memtable = Memtable::from_config(conf).unwrap_or_else(|err| {
+        println!("Failed to create a memtable: {}", err);
+        process::exit(1);
+    });
 
-        println!("The value corresponding to key {} is {}", key, value);
-    }
+    Ok(())
 }
