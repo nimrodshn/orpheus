@@ -7,11 +7,9 @@ use std::net::TcpStream;
 extern crate clap;
 use clap::{Arg, App};
 
-use crate::memtable::Memtable;
-use crate::config::Config;
-
-pub mod memtable;
-pub mod config;
+use orpheus::memtable::Memtable;
+use orpheus::config::Config;
+use orpheus::thread_pool::ThreadPool;
 
 fn main() {
     let matches =App::new("orpheus")
@@ -19,8 +17,8 @@ fn main() {
         .author("Nimrod Shneor <nshneor@redhat.com>")
         .about("Experimental key value storage engine")
         .arg(
-            Arg::with_name("log_path")
-            .long("log_path")
+            Arg::with_name("log-path")
+            .long("log-path")
             .value_name("PATH")
             .help("Sets a path for the log file")
             .takes_value(true)
@@ -33,13 +31,25 @@ fn main() {
             .help("The port file to listen to requests")
             .takes_value(true)
             .required(true)
+        ).arg(
+            Arg::with_name("thread-pool-size")
+            .long("thread-pool-size")
+            .value_name("THREAD_POOL_SIZE")
+            .help("The number of threads to listen to incoming requests.")
+            .takes_value(true)
+            .required(true)
         ).get_matches();
     
     
-    let path = matches.value_of("log_path").unwrap().to_string();
+    let path = matches.value_of("log-path").unwrap().to_string();
     let port = matches.value_of("port").unwrap().to_string();
+    let thread_pool_size = matches.value_of("thread-pool-size").unwrap().parse::<usize>().unwrap();
 
-    let conf = Config::new(port, path);
+    let conf = Config::new(
+        port,
+        path,
+        thread_pool_size
+    );
     
     if let Err(e) = run(conf) {
         println!("Application error: {}", e);
@@ -49,12 +59,17 @@ fn main() {
 
 fn run(conf: Config) -> Result<(), Box<dyn Error>> {
     let host = format!("127.0.0.1:{}", conf.port);
-    let listener = TcpListener::bind(host).unwrap();
+    let listener = TcpListener::bind(host)?;
+    let pool = ThreadPool::new(conf.thread_pool_size);
+
     for stream in listener.incoming() {
         let stream = stream.unwrap();
-        handle_connection(stream)?;
+        pool.execute(|| {
+            handle_connection(stream);
+        });
     }
 
+    // TODO: Move to handle_connection
     let mut memtable = Memtable::from_config(conf).unwrap_or_else(|err| {
         println!("Failed to create a memtable: {}", err);
         process::exit(1);
