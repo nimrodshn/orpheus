@@ -1,18 +1,27 @@
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::io;
+use std::path::Path;
 use std::net::{Ipv4Addr, IpAddr};
 use hyper::{Body, Request, Response, Server};
 use hyper::service::{make_service_fn, service_fn};
+use crate::memtable::Memtable;
 
 pub struct APIServer{
-    port: u16
+    port: u16,
+    memtable: Memtable
 }
 
 impl APIServer {
-    pub fn new(port: u16) -> APIServer {
-        APIServer {
-            port
-        }
+    pub fn new(port: u16, path: String) -> Result<APIServer, io::Error> {
+        let path = Path::new(&path);
+        let memtable = Memtable::new(path)?;
+
+        let server = APIServer {
+            port,
+            memtable
+        };
+        Ok(server)
     }
     pub async fn run(&self) {
         let addr = SocketAddr::from(([127, 0, 0, 1], self.port));
@@ -33,7 +42,6 @@ impl APIServer {
             eprintln!("server error: {}", e);
         }
     }
-    
 }
 
 async fn serve_req(_req: Request<Body>) -> Result<Response<Body>, hyper::Error> {

@@ -40,11 +40,6 @@ impl Memtable {
         Ok(result)
     }
 
-    pub fn from_config(conf: Config) -> Result<Memtable, io::Error> {
-        let path = Path::new(&conf.log_path);
-        Memtable::new(path)
-    }
-
     pub fn write(&mut self, key: String, value: String) -> Result<(), io::Error> {
         let value_raw = value.as_bytes();
         self.log.write(value_raw)?;
