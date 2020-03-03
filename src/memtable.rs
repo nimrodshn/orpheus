@@ -6,8 +6,6 @@ use std::path::Path;
 use std::fs::OpenOptions;
 use std::rc::Rc;
 use crate::memtable::error::Error;
-use crate::config::Config;
-
 pub mod error;
 
 #[derive(Debug)]

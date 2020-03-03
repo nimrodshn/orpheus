@@ -1,17 +1,14 @@
 use std::process;
-use std::error::Error;
-use std::io::prelude::*;
-use std::net::TcpListener;
 use std::io;
-use std::net::TcpStream;
 use std::path::Path;
+use std::sync::{Arc, RwLock};
 
 extern crate clap;
 use clap::{Arg, App};
 
 use orpheus::config::Config;
-use orpheus::thread_pool::ThreadPool;
-use orpheus::server::APIServer;
+use orpheus::memtable::Memtable;
+use orpheus::server;
 
 #[tokio::main]
 async fn main() {
@@ -52,7 +49,8 @@ async fn main() {
 }
 
 async fn run_server(conf: Config) -> Result<(), io::Error> {
-    let api_server = APIServer::new(conf.port, conf.log_path)?;
-    api_server.run().await;
+    let path = Path::new(&conf.log_path);
+    let memtable = Arc::new(RwLock::new(Memtable::new(path)?));
+    server::run(conf.port, memtable).await;
     Ok(())
 }

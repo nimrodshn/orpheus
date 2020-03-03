@@ -1,51 +1,53 @@
-use std::convert::Infallible;
 use std::net::SocketAddr;
-use std::io;
-use std::path::Path;
-use std::net::{Ipv4Addr, IpAddr};
-use hyper::{Body, Request, Response, Server};
+use hyper::{Body, Request, Response, Method, StatusCode,Server};
+use std::sync::{RwLock, Arc};
 use hyper::service::{make_service_fn, service_fn};
-use crate::memtable::Memtable;
+use serde::{Deserialize};
 
-pub struct APIServer{
-    port: u16,
-    memtable: Memtable
+use crate::memtable::Memtable;
+use crate::handlers;
+
+
+#[derive(Deserialize, Debug)]
+pub struct KeyValuePair {
+    key : String,
+    value : String,
 }
 
-impl APIServer {
-    pub fn new(port: u16, path: String) -> Result<APIServer, io::Error> {
-        let path = Path::new(&path);
-        let memtable = Memtable::new(path)?;
+pub async fn run(port: u16, memtable: Arc<RwLock<Memtable>>) {
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
 
-        let server = APIServer {
-            port,
-            memtable
-        };
-        Ok(server)
-    }
-    pub async fn run(&self) {
-        let addr = SocketAddr::from(([127, 0, 0, 1], self.port));
+    println!("Listening on {}", addr);
 
-        println!("Listening on {}", addr);
-
-        let serve_future = Server::bind(&addr).serve(make_service_fn(|_conn| {
-            async {
-                {
-                    Ok::<_, hyper::Error>(service_fn(serve_req))
-                }
+    let serve_future = Server::bind(&addr).serve(make_service_fn(move |_| {
+            let cloned_memtable = memtable.clone();
+            async move { 
+                Ok::<_, hyper::Error>(service_fn(move |req| router(cloned_memtable.clone() ,req))) 
             }
-        }));
+        })
+    );
 
-        // Wait for the server to complete serving or exit with an error.
-        // If an error occurred, print it to stderr.
-        if let Err(e) = serve_future.await {
-            eprintln!("server error: {}", e);
+    // Wait for the server to complete serving or exit with an error.
+    // If an error occurred, print it to stderr.
+    if let Err(e) = serve_future.await {
+        eprintln!("server error: {}", e);
+    }
+}
+
+// Router routes requests to approporiate http handlers.
+async fn router(memtable: Arc<RwLock<Memtable>>, req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
+    let mut response = Response::new(Body::empty());
+
+    match (req.method(), req.uri().path()) {
+        (&Method::GET, "/{key}") => {
+            handlers::get_value(req)
+        }
+        (&Method::POST, "/") => {
+            handlers::write_key_value_pair(req).await
+        }
+        _ => {
+            *response.status_mut() = StatusCode::NOT_FOUND;
+            Ok(response)
         }
     }
-}
-
-async fn serve_req(_req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
-    // Always return successfully with a response containing a body with
-    // a friendly greeting ;)
-    Ok(Response::new(Body::from("hello, world!")))
 }
