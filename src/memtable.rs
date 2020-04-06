@@ -48,19 +48,26 @@ impl Memtable {
         Ok(())
     }
 
-    pub fn read(&mut self, key: &String) -> Result<String, Error> {
+    pub fn read(&self, key: &String) -> Result<String, Error> {
         let entry = match self.index.get(key) {
             None => return Err(Error::NotFound),
             Some(v) => v,
         };
         let mut buf = vec![0u8; entry.size];
+        
+        // TODO Consider guarding the log file with Arc.
+        let mut cloned_file = match self.log.try_clone() {
+            Err(e) => return Err(Error::Io(Rc::new(e))),
+            Ok(v) => v,
+        };
+        
         // Seek the offset of the value in the log file.
-        match self.log.seek(io::SeekFrom::Start(entry.offset as u64)) {
+        match cloned_file.seek(io::SeekFrom::Start(entry.offset as u64)) {
             Err(e) => return Err(Error::Io(Rc::new(e))),
             _ => (),
         };
         // Read the the lines from file to a byte buffer. 
-        match self.log.read_exact(&mut buf) {
+        match cloned_file.read_exact(&mut buf) {
             Err(e) => return Err(Error::Io(Rc::new(e))),
             Ok(v) => v,
         };

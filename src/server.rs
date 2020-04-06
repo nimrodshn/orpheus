@@ -10,8 +10,8 @@ use crate::handlers;
 
 #[derive(Deserialize, Debug)]
 pub struct KeyValuePair {
-    key : String,
-    value : String,
+    pub key : String,
+    pub value : String,
 }
 
 pub async fn run(port: u16, memtable: Arc<RwLock<Memtable>>) {
@@ -36,16 +36,15 @@ pub async fn run(port: u16, memtable: Arc<RwLock<Memtable>>) {
 
 // Router routes requests to approporiate http handlers.
 async fn router(memtable: Arc<RwLock<Memtable>>, req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
-    let mut response = Response::new(Body::empty());
-
     match (req.method(), req.uri().path()) {
         (&Method::GET, "/{key}") => {
-            handlers::get_value(req)
+            handlers::get_value(memtable, req).await
         }
         (&Method::POST, "/") => {
-            handlers::write_key_value_pair(req).await
+            handlers::write_key_value_pair(memtable, req).await
         }
         _ => {
+            let mut response = Response::new(Body::empty());
             *response.status_mut() = StatusCode::NOT_FOUND;
             Ok(response)
         }
