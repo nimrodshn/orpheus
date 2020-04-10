@@ -2,16 +2,21 @@ use std::net::SocketAddr;
 use hyper::{Body, Request, Response, Method, StatusCode,Server};
 use std::sync::{RwLock, Arc};
 use hyper::service::{make_service_fn, service_fn};
-use serde::{Deserialize};
+use serde::{Serialize, Deserialize};
 
 use crate::memtable::Memtable;
 use crate::handlers;
 
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct KeyValuePair {
     pub key : String,
     pub value : String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GetValueRequest {
+    pub key: String
 }
 
 pub async fn run(port: u16, memtable: Arc<RwLock<Memtable>>) {
@@ -37,7 +42,7 @@ pub async fn run(port: u16, memtable: Arc<RwLock<Memtable>>) {
 // Router routes requests to approporiate http handlers.
 async fn router(memtable: Arc<RwLock<Memtable>>, req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
     match (req.method(), req.uri().path()) {
-        (&Method::GET, "/{key}") => {
+        (&Method::GET, "/") => {
             handlers::get_value(memtable, req).await
         }
         (&Method::POST, "/") => {

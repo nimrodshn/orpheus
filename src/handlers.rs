@@ -1,7 +1,7 @@
 use hyper::{Body, Request, Response, StatusCode};
 use std::sync::{RwLock, Arc};
 
-use crate::server::KeyValuePair;
+use crate::server::{KeyValuePair, GetValueRequest};
 use crate::memtable::Memtable;
 
 pub async fn write_key_value_pair(guarded_memtable: Arc<RwLock<Memtable>>, req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
@@ -40,8 +40,8 @@ pub async fn write_key_value_pair(guarded_memtable: Arc<RwLock<Memtable>>, req: 
 
 pub async fn get_value(guarded_memtable: Arc<RwLock<Memtable>>, req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
     let raw = hyper::body::to_bytes(req.into_body()).await?;
-    let key_val_pair = match serde_json::from_slice::<KeyValuePair>(raw.as_ref()) {
-        Ok(kv) => kv,
+    let get_val_req = match serde_json::from_slice::<GetValueRequest>(raw.as_ref()) {
+        Ok(get_val_req) => get_val_req,
         Err(_) => {
             let mut bad_request = Response::default();
             *bad_request.status_mut() = StatusCode::BAD_REQUEST;
@@ -61,7 +61,7 @@ pub async fn get_value(guarded_memtable: Arc<RwLock<Memtable>>, req: Request<Bod
     // read lock requires read method of memtable be immutable! (not &self mut)
     // but read method requires &self mut to access the log file which needs to have
     // mutable reference.
-    let value  = match memtable.read(&key_val_pair.key) {
+    let value  = match memtable.read(&get_val_req.key) {
         Ok(val) => val,
         Err(_) => {
             let mut failure = Response::default();
@@ -70,7 +70,31 @@ pub async fn get_value(guarded_memtable: Arc<RwLock<Memtable>>, req: Request<Bod
         }
     };
 
+    let response = KeyValuePair{
+        key: get_val_req.key,
+        value: value
+    };
+
     // write key value response here.
+    let raw_response = match serde_json::to_vec::<KeyValuePair>(&response) {
+        Ok(raw_response) => raw_response,
+        Err(_) => {
+            let mut failure = Response::default();
+            *failure.status_mut() = StatusCode::NOT_FOUND;
+            return Ok(failure);
+        }
+    };
+
+    let body = Body::from(raw_response);
+
+    let response = match Response::builder().body::<Body>(body) {
+        Ok(response) => response,
+        Err(_) => {
+            let mut failure = Response::default();
+            *failure.status_mut() = StatusCode::NOT_FOUND;
+            return Ok(failure);
+        }
+    };
     
-    Ok(Response::new(Body::empty()))
+    Ok(response)
 }
