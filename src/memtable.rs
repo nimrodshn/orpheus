@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
@@ -17,7 +17,7 @@ struct Entry {
 #[derive(Debug)]
 pub struct Memtable {
     offset: usize,
-    index: HashMap<String, Entry>,
+    index: BTreeMap<String, Entry>,
     log: File,
 }
 
@@ -31,7 +31,7 @@ impl Memtable {
             open(path)?;
 
         let result = Memtable{
-            index: HashMap::new(),
+            index: BTreeMap::new(),
             log: file,
             offset: 0,
         };
