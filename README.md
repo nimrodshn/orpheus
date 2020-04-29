@@ -1,8 +1,8 @@
 # orpheus
-An experimental key-value store written in rust.
+An experimental key-value storage engine written in rust.
 
 ## Architecture
-`orpheus` is a key value store. It uses a simple log file and an in memory table as storage for the DB;
+`orpheus` is a key value store. It uses an [SSTable](https://en.wikipedia.org/wiki/Log-structured_merge-tree) (in-memory sorted table) for indexing and a persistent log containes the raw bytes of given for values;
 Each value is appended as UTF encoded byte array to the log file and its key, offset and length are 
 stored in an in memory hashmap for later retreival.
 
